@@ -1,0 +1,103 @@
+plugins {
+    id 'java'
+    id 'io.qameta.allure' version '2.8.1'
+    id 'io.gatling.gradle' version '3.5.1'
+}
+
+group 'com.tests'
+version '1.0-SNAPSHOT'
+
+defaultTasks 'clean', 'test'
+
+configurations {
+    testImplementation {
+        canBeResolved=true
+    }
+}
+sourceSets {
+    test {
+        java {srcDir 'test'}
+        resources {srcDir 'test'}
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    allureVersion = '2.13.9'
+    junitVersion = '5.7.1'
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+dependencies {
+    testImplementation('com.codeborne:selenide:5.21.0')
+    testImplementation("io.qameta.allure:allure-selenide:${allureVersion}")
+    testImplementation('org.assertj:assertj-core:3.19.0')
+    testImplementation('org.hamcrest:hamcrest:2.2')
+    testImplementation('org.slf4j:slf4j-simple:1.7.30')
+
+    testImplementation("org.junit.jupiter:junit-jupiter-api:${junitVersion}")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${junitVersion}")
+}
+
+task libs(type: Sync) {
+    from configurations.testImplementation
+    into "$buildDir/lib"
+}
+
+classes.dependsOn libs
+
+tasks.withType(Test).all { testTask ->
+    testTask.systemProperties = [
+            'file.encoding': 'UTF-8',
+            'BUILD_URL': System.getenv()['BUILD_URL'],
+            'chromeoptions.prefs': 'profile.default_content_setting_values.notifications=1',
+            'junit.jupiter.execution.parallel.enabled': 'true',
+            'junit.jupiter.execution.parallel.mode.default': 'concurrent',
+            'junit.jupiter.execution.parallel.config.strategy': 'dynamic',
+            'junit.jupiter.execution.parallel.config.dynamic.factor': '1',
+    ]
+    testTask.testLogging.showStandardStreams = true
+    testTask.outputs.upToDateWhen { false }
+    finalizedBy("allureReport")
+}
+
+task chrome(type: Test) {
+    systemProperties['selenide.browser'] = 'chrome'
+    systemProperties['selenide.headless'] = 'true'
+}
+
+task firefox(type: Test) {
+    systemProperties['selenide.browser'] = 'firefox'
+    systemProperties['selenide.headless'] = 'true'
+}
+
+task ie(type: Test) {
+    systemProperties['selenide.browser'] = 'ie'
+}
+
+task edge(type: Test) {
+    systemProperties['selenide.browser'] = 'edge'
+}
+
+// You must enable the 'Allow Remote Automation' option in Safari's Develop menu to control Safari via WebDriver.
+task safari(type: Test) {
+    systemProperties['selenide.browser'] = 'safari'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+allure {
+    autoconfigure = true
+    version = "${allureVersion}"
+
+    useJUnit5 {
+        version = "${allureVersion}"
+    }
+}
